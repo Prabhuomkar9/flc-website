@@ -1,0 +1,58 @@
+import { z } from "zod";
+
+export const RegisterSchema = z
+  .object({
+    name: z.string().min(1, {
+      message: "Name is required",
+    }),
+    email: z
+      .string()
+      .email({
+        message: "Email is required",
+      })
+      .refine(
+        (email) => {
+          email.endsWith("@nmamit.in");
+        },
+        {
+          message: "Email must be from NMAMIT",
+        },
+      ),
+    phone: z.string().regex(/^[6-9]\d{9}$/, {
+      message: "Invalid phone number. Must be a 10-digit number ",
+    }),
+    year: z.string(),
+    branch: z.string(),
+
+    password: z.string().min(8, {
+      message: "password should consist of minimum 6 characters",
+    }),
+
+    confirmPassword: z.string(),
+  })
+  .refine(
+    (data) => {
+      data.password === data.confirmPassword;
+    },
+    {
+      path: ["confirmPassword"],
+      message: "passwords dont match",
+    },
+  );
+
+export const LoginSchema = z.object({
+  email: z
+    .string()
+    .email({
+      message: "Email is required",
+    })
+    .refine(
+      (email) => {
+        email.endsWith("@nmamit.in");
+      },
+      {
+        message: "Email must be from NMAMIT",
+      },
+    ),
+  password: z.string().min(1, { message: "Password is required" }),
+});
