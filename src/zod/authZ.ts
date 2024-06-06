@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const RegisterSchema = z
+const RegisterSchema = z
   .object({
     name: z.string().min(1, {
       message: "Name is required",
@@ -22,7 +22,7 @@ export const RegisterSchema = z
       message: "Invalid phone number. Must be a 10-digit number ",
     }),
     year: z.string(),
-    branch: z.string(),
+    branchId: z.string(),
 
     password: z.string().min(8, {
       message: "password should consist of minimum 6 characters",
@@ -40,7 +40,7 @@ export const RegisterSchema = z
     },
   );
 
-export const LoginSchema = z.object({
+const LoginSchema = z.object({
   email: z
     .string()
     .email({
@@ -56,3 +56,35 @@ export const LoginSchema = z.object({
     ),
   password: z.string().min(1, { message: "Password is required" }),
 });
+
+const SendVerifyEmailSchema = z.object({
+  email: z
+    .string()
+    .email({
+      message: "Email is required",
+    })
+    .refine(
+      (email) => {
+        email.endsWith("@nmamit.in");
+      },
+      {
+        message: "Email must be from NMAMIT",
+      },
+    ),
+});
+
+const VerifyEmailSchema = z.object({
+  token: z.string(),
+});
+
+const RefreshTokenSchema = z.object({
+  refreshToken: z.string(),
+});
+
+export {
+  LoginSchema,
+  RegisterSchema,
+  SendVerifyEmailSchema,
+  VerifyEmailSchema,
+  RefreshTokenSchema,
+};

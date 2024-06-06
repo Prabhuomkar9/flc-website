@@ -1,8 +1,35 @@
-import { LoginSchema, RegisterSchema } from "~/zod/authZ";
+import {
+  LoginSchema,
+  RegisterSchema,
+  SendVerifyEmailSchema,
+  VerifyEmailSchema,
+} from "~/zod/authZ";
+import { v4 as uuidv4 } from "uuid";
 import { createTRPCRouter, publicProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
-import { getUserByEmail } from "~/utils/auth";
-import bcrypt from "bcryptjs";
+import jwt, {
+  JsonWebTokenError,
+  NotBeforeError,
+  TokenExpiredError,
+} from "jsonwebtoken";
+import {
+  compareHashedPassword,
+  getUserByEmail,
+  getUserById,
+  hashPassword,
+} from "~/utils/auth/auth";
+import {
+  addRefreshTokenToWhitelist,
+  addVerificationTokenToWhitelist,
+  revokeVerificationToken,
+} from "~/services/auth.service";
+import {
+  findVerificationTokenById,
+  generateTokens,
+  generateVerificationToken,
+  secrets,
+} from "~/utils/auth/jwt";
+import { sendVerificationEmail } from "~/utils/nodeMailer/nodeMailer";
 
 export const authRouter = createTRPCRouter({
   signUp: publicProcedure
@@ -14,14 +41,14 @@ export const authRouter = createTRPCRouter({
           message: "You are already logged in",
         });
       }
-      const { name, email, password, phone, year, branch } = input;
+      const { name, email, password, phone, year, branchId } = input;
 
       try {
         const existingUser = await getUserByEmail(email);
 
         if (existingUser && !existingUser.emailVerified) {
           throw new TRPCError({
-            code: "FORBIDDEN",
+            code: "BAD_REQUEST",
             message: "Please verify your email and Login",
           });
         }
@@ -33,45 +60,45 @@ export const authRouter = createTRPCRouter({
           });
         }
 
-        const branchName = branch.toUpperCase();
+        //TODO: Implement year typechecks
 
-        const existingBranch = await ctx.db.branch.findFirst({
-          where: {
-            name: branchName,
-          },
-        });
-
-        if (!existingBranch) {
+        const hashedPassword = await hashPassword(password);
+        if (!hashPassword) {
           throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Invalid Branch Name",
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Something went wrong",
           });
         }
 
-        //TODO: Implement year typechecks
-
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        await ctx.db.user.create({
+        const user = await ctx.db.user.create({
           data: {
             name,
             email,
-            password: hashedPassword,
+            password: hashedPassword!,
             phone: phone,
             year, //Yet to be resolved
             Branch: {
               connect: {
-                id: existingBranch.id,
+                id: branchId,
               },
             },
           },
         });
 
-        return {
-          status: "success",
-          message: "user created",
-        };
+        if (!user) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Something went wrong",
+          });
+        }
+
+        return user;
       } catch (error) {
+        console.error(error);
+
+        if (error instanceof TRPCError) {
+          throw error;
+        }
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Something went wrong",
@@ -79,27 +106,100 @@ export const authRouter = createTRPCRouter({
       }
     }),
 
-  login: publicProcedure.input(LoginSchema).mutation(async ({ ctx, input }) => {
-    const { email, password } = input;
+  sendVerifyEmail: publicProcedure
+    .input(SendVerifyEmailSchema)
+    .mutation(async ({ ctx, input }) => {
+      const { email } = input;
+      try {
+        const existingUser = await getUserByEmail(email);
+        if (!existingUser) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "User not found",
+          });
+        }
+        if (existingUser.emailVerified) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "User already verified",
+          });
+        }
+        const { id: token } = await addVerificationTokenToWhitelist({
+          userId: existingUser.id,
+        });
 
-    const existingUser = await getUserByEmail(email);
-    if (!existingUser) {
-      throw new TRPCError({ code: "BAD_REQUEST", message: "No user found" });
-    }
-    const validPassword = await bcrypt.compare(password, existingUser.password);
-    if (!validPassword) {
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message: "Incorrect password",
-      });
-    }
-    if (!existingUser.emailVerified) {
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message: "Please verify email",
-      });
-    }
+        const verificationToken = generateVerificationToken(
+          existingUser,
+          token,
+        );
+        const url = `${process.env.AUTH_URL}/auth/verify-email?token=${verificationToken}`;
 
-    //TODO: Remaining
-  }),
+        await sendVerificationEmail(existingUser.email, url, existingUser.name);
+
+        return {
+          success: "Email sent",
+        };
+      } catch (error) {
+        console.error(error);
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Something went wrong",
+        });
+      }
+    }),
+  verifyEmail: publicProcedure
+    .input(VerifyEmailSchema)
+    .mutation(async ({ ctx, input }) => {
+      const { token } = input;
+
+      try {
+        const payload = jwt.verify(
+          token,
+          secrets.JWT_VERIFICATION_SECRET as string,
+        ) as any;
+
+        const savedToken = await findVerificationTokenById(
+          payload?.jti as string,
+        );
+        if (!savedToken || savedToken.revoked == true) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Invalid token",
+          });
+        }
+        const user = await getUserById(payload.userId as string);
+        if (!user) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Invalid token",
+          });
+        }
+        const verifiedUser = await ctx.db.user.update({
+          where: {
+            id: user.id,
+          },
+          data: {
+            emailVerified: new Date(),
+          },
+        });
+
+        await revokeVerificationToken(savedToken.id);
+
+        return verifiedUser;
+      } catch (error) {
+        if (error instanceof TokenExpiredError) {
+          console.error("Token has expired:", error.message);
+        } else if (error instanceof NotBeforeError) {
+          console.error("Token not active:", error.message);
+        } else if (error instanceof JsonWebTokenError) {
+          console.error("JWT Error:", error.message);
+        } else {
+          console.error("Unknown error:", error);
+        }
+        throw error;
+      }
+    }),
 });
