@@ -16,7 +16,7 @@ export const sendVerificationEmail = async (
   name: string,
 ) => {
   async function main() {
-    const info = await transporter.sendMail({
+    await transporter.sendMail({
       from: '"Finite Loop Club" <flc@nmamit.in>',
       to: email,
       subject: "Verify your email",

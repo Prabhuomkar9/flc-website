@@ -8,7 +8,7 @@ import { getUserById } from "./auth";
 import { v4 as uuidv4 } from "uuid";
 import { addRefreshTokenToWhitelist } from "~/services/auth.service";
 
-const AUTH_SECRET = process.env.AUTH_SECRET as string;
+const AUTH_SECRET = process.env.AUTH_SECRET!;
 
 const secrets = {
   JWT_VERIFICATION_SECRET: AUTH_SECRET + "verification",
@@ -17,7 +17,7 @@ const secrets = {
 };
 
 const generateAccessToken = (user: { id: string }) => {
-  return jwt.sign({ userId: user.id }, secrets.JWT_ACCESS_SECRET as string, {
+  return jwt.sign({ userId: user.id }, secrets.JWT_ACCESS_SECRET, {
     expiresIn: "5h",
   });
 };
@@ -28,7 +28,7 @@ export function generateRefreshToken(user: { id: string }, jti: string) {
       userId: user.id,
       jti,
     },
-    secrets.JWT_REFRESH_SECRET as string,
+    secrets.JWT_REFRESH_SECRET,
     {
       expiresIn: "7d",
     },
@@ -49,7 +49,7 @@ const generateVerificationToken = (
     {
       expiresIn: "1d",
     },
-  ) as string;
+  );
 };
 
 const findVerificationTokenById = async (
@@ -78,7 +78,7 @@ const getRefreshTokenExpiry = (token: string) => {
   if (decoded && typeof decoded === "object") {
     const decodedToken: jwt.JwtPayload = decoded;
     if (decodedToken?.exp) {
-      const adjustedExpiry = decoded["exp"] || 0;
+      const adjustedExpiry = decodedToken.exp || 0;
       // console.log("Refresh :", (adjustedExpiry - currentTime).toLocaleString());
       return adjustedExpiry;
     }
@@ -93,7 +93,7 @@ const isJwtExpired = (token: string) => {
   if (decoded && typeof decoded === "object") {
     const decodedToken: jwt.JwtPayload = decoded;
     if (decodedToken?.exp) {
-      const adjustedExpiry = decoded["exp"] || 0;
+      const adjustedExpiry = decodedToken.exp ?? 0;
       if (adjustedExpiry < currentTime) {
         return true;
       }
@@ -138,11 +138,9 @@ const refreshToken = async (token: string) => {
 
     const payload = jwt.verify(
       refreshToken,
-      secrets.JWT_REFRESH_SECRET as string,
-    ) as any;
-    const savedRefreshedToken = await findRefreshTokenById(
-      payload.jti as string,
-    );
+      secrets.JWT_REFRESH_SECRET,
+    ) as jwt.JwtPayload;
+    const savedRefreshedToken = await findRefreshTokenById(payload.jti!);
     if (!savedRefreshedToken || savedRefreshedToken.revoked == true) {
       console.error("Invalid token");
       throw error("Invalid token");

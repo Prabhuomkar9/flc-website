@@ -158,19 +158,17 @@ export const authRouter = createTRPCRouter({
       try {
         const payload = jwt.verify(
           token,
-          secrets.JWT_VERIFICATION_SECRET as string,
-        ) as any;
+          secrets.JWT_VERIFICATION_SECRET,
+        ) as jwt.JwtPayload;
 
-        const savedToken = await findVerificationTokenById(
-          payload?.jti as string,
-        );
+        const savedToken = await findVerificationTokenById(payload.jti!);
         if (!savedToken || savedToken.revoked == true) {
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: "Invalid token",
           });
         }
-        const user = await getUserById(payload.userId as string);
+        const user = await getUserById(payload.userId! as string);
         if (!user) {
           throw new TRPCError({
             code: "BAD_REQUEST",
