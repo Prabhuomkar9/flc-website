@@ -30,6 +30,7 @@ import {
   secrets,
 } from "~/utils/auth/jwt";
 import { sendVerificationEmail } from "~/utils/nodeMailer/nodeMailer";
+import { signIn } from "~/auth";
 
 export const authRouter = createTRPCRouter({
   signUp: publicProcedure
@@ -198,6 +199,56 @@ export const authRouter = createTRPCRouter({
           console.error("Unknown error:", error);
         }
         throw error;
+      }
+    }),
+
+  signIn: publicProcedure
+    .input(LoginSchema)
+    .mutation(async ({ ctx, input }) => {
+      console.log(input);
+
+      if (ctx.session?.user ?? ctx.session) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "You are already logged in",
+        });
+      }
+      const { email, password } = input;
+      try {
+        const user = await getUserByEmail(email);
+        if (!user) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Invalid credentials",
+          });
+        }
+        const passwordMatch = await compareHashedPassword(
+          password,
+          user.password,
+        );
+        if (!passwordMatch) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Invalid credentials",
+          });
+        }
+        await signIn("credentials", {
+          email,
+          password,
+          redirectTo: "/home",
+        });
+
+        console.log("Sign-in successful");
+        // Perform any additional actions, e.g., redirecting the user manually
+      } catch (error) {
+        console.error(error);
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Something went wrong",
+        });
       }
     }),
 });

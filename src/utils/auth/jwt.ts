@@ -18,7 +18,7 @@ const secrets = {
 
 const generateAccessToken = (user: { id: string }) => {
   return jwt.sign({ userId: user.id }, secrets.JWT_ACCESS_SECRET, {
-    expiresIn: "5h",
+    expiresIn: "25s",
   });
 };
 
@@ -30,7 +30,7 @@ export function generateRefreshToken(user: { id: string }, jti: string) {
     },
     secrets.JWT_REFRESH_SECRET,
     {
-      expiresIn: "7d",
+      expiresIn: "5h",
     },
   );
 }
@@ -87,16 +87,27 @@ const getRefreshTokenExpiry = (token: string) => {
 };
 
 const isJwtExpired = (token: string) => {
-  const currentTime = Math.floor(Date.now() / 1000) + 60;
+  console.log("ITS MY HOMEEEEEEEEEEEEEEEEEEEEEEE");
+  console.log("ACCCESSS TOKENN", token);
+
+  const currentTime = Math.floor(Date.now() / 1000);
   const decoded = jwt.decode(token);
 
   if (decoded && typeof decoded === "object") {
     const decodedToken: jwt.JwtPayload = decoded;
+    console.log(decodedToken);
+
     if (decodedToken?.exp) {
       const adjustedExpiry = decodedToken.exp ?? 0;
+      console.log("Current time (with buffer):", currentTime + 60);
+      console.log("Token expiry time:", adjustedExpiry);
       if (adjustedExpiry < currentTime) {
+        console.log("WTF");
+
         return true;
       }
+      console.log("NOWTF");
+
       return false;
     }
   }
@@ -125,7 +136,20 @@ const generateTokens = (user: { id: string }, jti: string) => {
   };
 };
 
+const rotateTokens = async (token: string) => {
+  console.log("refreshing token", token);
+
+  const tokens = await refreshToken(token);
+  if (tokens) {
+    return [tokens.accessToken, tokens.refreshToken];
+  }
+  console.log("refreshToken failed");
+  return [null, null];
+};
+
 const refreshToken = async (token: string) => {
+  console.log("GGGGGGGGGGGGGGGGGGGGGGGGGGGG");
+
   try {
     const validateFields = RefreshTokenSchema.safeParse({
       refreshToken: token,
@@ -140,8 +164,12 @@ const refreshToken = async (token: string) => {
       refreshToken,
       secrets.JWT_REFRESH_SECRET,
     ) as jwt.JwtPayload;
+    console.log("Payload", payload);
+
     const savedRefreshedToken = await findRefreshTokenById(payload.jti!);
-    if (!savedRefreshedToken || savedRefreshedToken.revoked == true) {
+    console.log("SAVEDDDDDDDDDDDDD", savedRefreshedToken);
+
+    if (!savedRefreshedToken || savedRefreshedToken.revoked === true) {
       console.error("Invalid token");
       throw error("Invalid token");
     }
@@ -193,4 +221,5 @@ export {
   findRefreshTokenById,
   revokeRefreshToken,
   refreshToken,
+  rotateTokens,
 };
