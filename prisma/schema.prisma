@@ -26,9 +26,9 @@ model User {
 
   // Manually Added
   password String
-  phone    String  @db.VarBit(10)
+  phone    String
   bio      String?
-  year     String  @db.VarBit(4)
+  year     String
 
   role     Role    @default(USER)
   position String?
