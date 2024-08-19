@@ -1,6 +1,7 @@
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ReactLenis } from "lenis/react";
+import { type GetServerSideProps, type GetServerSidePropsContext } from "next";
 import { type Session } from "next-auth";
 import { SessionProvider } from "next-auth/react";
 import { type AppType } from "next/app";
@@ -8,14 +9,28 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 
 import Layout from "~/components/layout";
+import SEOLayout from "~/components/layout/seo";
 import { siteMetaData } from "~/constants";
 import { ThemeProvider } from "~/context/themeContext";
+import { env } from "~/env";
 import "~/styles/globals.css";
 import { api } from "~/utils/api";
 
-const MyApp: AppType<{ session: Session | null }> = ({
+export const getServerSideProps: GetServerSideProps<{
+  ogImageUrl: string;
+}> = async (context: GetServerSidePropsContext) => {
+  const ogImageUrl = `${env.NEXTAUTH_URL}/api/og-image?page=${context.resolvedUrl}`;
+
+  return {
+    props: {
+      ogImageUrl,
+    },
+  };
+};
+
+const MyApp: AppType<{ session: Session | null; ogImageUrl: string }> = ({
   Component,
-  pageProps: { session, ...pageProps },
+  pageProps: { session, ogImageUrl, ...pageProps },
 }) => {
   const { pathname } = useRouter();
 
@@ -40,9 +55,11 @@ const MyApp: AppType<{ session: Session | null }> = ({
           <Head>
             <title>{title}</title>
           </Head>
-          <Layout>
-            <Component {...pageProps} />
-          </Layout>
+          <SEOLayout ogImageUrl={ogImageUrl}>
+            <Layout>
+              <Component {...pageProps} />
+            </Layout>
+          </SEOLayout>
           <Analytics />
           <SpeedInsights />
         </ReactLenis>

@@ -16,7 +16,7 @@ export default function Home() {
     <main className="flex flex-col items-stretch">
       <div className="h-screen w-screen bg-gradient-to-t from-[#ffffff] via-[#efd17bc7] to-[#ffed951a] dark:bg-none" />
       <video
-        src="waves.webm"
+        src="assets/videos/waves.webm"
         autoPlay
         muted
         loop

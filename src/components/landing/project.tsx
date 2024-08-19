@@ -6,12 +6,6 @@ import Image from "next/image";
 import { type StaticImageData } from "next/image";
 import { useRef } from "react";
 
-import dod from "~/assets/images/dod.jpg";
-import dol from "~/assets/images/dol.jpg";
-import Hackfest from "~/assets/images/hackfest.jpg";
-import waves from "~/assets/images/toc.jpg";
-import yaksha from "~/assets/images/yaksha.jpg";
-
 import { Button } from "../ui/button";
 
 interface Project {
@@ -50,6 +44,7 @@ const ProjectCard: React.FC<{ title: string; src: StaticImageData }> = ({
     },
     { scope: cardRef },
   );
+
   return (
     <div
       className="hoverable relative h-80 w-full overflow-hidden rounded"
@@ -96,12 +91,12 @@ function Projects() {
   );
 
   const projects: Project[] = [
-    { id: 1, title: "Dice Of Destiny", src: dod },
-    { id: 2, title: "Odyssey Of A Lifttime", src: dol },
-    { id: 3, title: "Tides Of Chnage", src: waves },
-    { id: 4, title: "HackFest", src: Hackfest },
-    { id: 5, title: "Yakshagavishti", src: yaksha },
-    { id: 5, title: "Flc Website", src: yaksha },
+    // { id: 1, title: "Dice Of Destiny", src: dod },
+    // { id: 2, title: "Odyssey Of A Lifttime", src: dol },
+    // { id: 3, title: "Tides Of Chnage", src: waves },
+    // { id: 4, title: "HackFest", src: Hackfest },
+    // { id: 5, title: "Yakshagavishti", src: yaksha },
+    // { id: 5, title: "Flc Website", src: yaksha },
   ];
 
   return (

@@ -4,13 +4,16 @@ import BlurFade from "~/components/magicui/blur-fade";
 import BoxReveal from "~/components/magicui/box-reveal";
 import { ConfettiButton } from "~/components/magicui/confetti";
 
-const images = [
-  { src: "img5.jpeg", title: "FareWell 2024" },
-  { src: "img6.jpeg", title: "FareWell 2024" },
-  { src: "img7.jpeg", title: "FareWell 2024" },
-  { src: "img9.jpeg", title: "FareWell 2024" },
-  { src: "img8.jpeg", title: "Image 8" },
-  { src: "img10.jpeg", title: "Image 10" },
+const images: {
+  src: string;
+  title: string;
+}[] = [
+  // { src: "img5.jpeg", title: "FareWell 2024" },
+  // { src: "img6.jpeg", title: "FareWell 2024" },
+  // { src: "img7.jpeg", title: "FareWell 2024" },
+  // { src: "img9.jpeg", title: "FareWell 2024" },
+  // { src: "img8.jpeg", title: "Image 8" },
+  // { src: "img10.jpeg", title: "Image 10" },
 ];
 
 export function BlurFadeDemo() {
